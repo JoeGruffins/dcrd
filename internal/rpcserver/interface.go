@@ -152,7 +152,7 @@ type SyncManager interface {
 		maxHashes uint32) []chainhash.Hash
 
 	// ExistsAddrIndex returns the address index.
-	ExistsAddrIndex() *indexers.ExistsAddrIndex
+	ExistsAddrIndex() ExistsAddrIndex
 
 	// CFIndex returns the committed filter (cf) by hash index.
 	CFIndex() *indexers.CFIndex
@@ -436,4 +436,26 @@ type FeeEstimator interface {
 	// confirmed in at most `targetConfs` blocks after publishing with a
 	// high degree of certainty.
 	EstimateFee(targetConfs int32) (dcrutil.Amount, error)
+}
+
+// ExistsAddrIndex implements an "ever seen" address index.  Any address that
+// is ever seen in a block or in the mempool is stored here as a key. Values
+// are empty.  Once an address is seen, it is never removed from this store.
+// This results in a local version of this database that is consistent only
+// for this peer, but at minimum contains all the addresses seen on the
+// blockchain itself.
+//
+// In addition, support is provided for a memory-only index of unconfirmed
+// transactions such as those which are kept in the memory pool before inclusion
+// in a block.
+//
+// The interface contract requires that all of these methods are safe for
+// concurrent access.
+type ExistsAddrIndex interface {
+	// ExistsAddress returns whether or not an address has been seen before.
+	ExistsAddress(addr dcrutil.Address) (bool, error)
+
+	// ExistsAddresses returns whether or not each address in a slice of addresses
+	// has been seen before.
+	ExistsAddresses(addrs []dcrutil.Address) ([]bool, error)
 }

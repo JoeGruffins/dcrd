@@ -3240,7 +3240,7 @@ func newServer(ctx context.Context, listenAddrs []string, db database.DB, chainP
 		s.rpcServer, err = newRPCServer(&rpcserverConfig{
 			Listeners:    rpcListeners,
 			ConnMgr:      &rpcConnManager{&s},
-			SyncMgr:      &rpcSyncMgr{&s, s.blockManager},
+			SyncMgr:      &rpcSyncMgr{server: &s, blockMgr: s.blockManager},
 			PeerNotifier: &s,
 			FeeEstimator: &rpcFeeEstimator{s.feeEstimator},
 			TimeSource:   s.timeSource,

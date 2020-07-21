@@ -354,8 +354,11 @@ func (b *rpcSyncMgr) LocateBlocks(locator blockchain.BlockLocator, hashStop *cha
 //
 // This function is safe for concurrent access and is part of the
 // rpcserver.SyncManager interface implementation.
-func (b *rpcSyncMgr) ExistsAddrIndex() *indexers.ExistsAddrIndex {
-	return b.server.existsAddrIndex
+func (b *rpcSyncMgr) ExistsAddrIndex() rpcserver.ExistsAddrIndex {
+	if b.server.existsAddrIndex == nil {
+		return nil
+	}
+	return &rpcExistsAddrIndex{b.server.existsAddrIndex}
 }
 
 // CFIndex returns the committed filter (cf) by hash index.
@@ -463,4 +466,14 @@ var _ rpcserver.FeeEstimator = (*rpcFeeEstimator)(nil)
 // implements the rpcserver.FeeEstimator interface.
 type rpcFeeEstimator struct {
 	*fees.Estimator
+}
+
+// Ensure rpcExistsAddrIndex implements the rpcserver.ExistsAddrIndex
+// interface.
+var _ rpcserver.ExistsAddrIndex = (*rpcExistsAddrIndex)(nil)
+
+// rpcExistsAddrIndex provides an exists address index for use with the RPC
+// server and implements the rpcserver.ExistsAddrIndex interface.
+type rpcExistsAddrIndex struct {
+	*indexers.ExistsAddrIndex
 }

@@ -440,6 +440,27 @@ func (c *testAddrManager) LocalAddresses() []addrmgr.LocalAddr {
 	return c.localAddresses
 }
 
+// testExistsAddrIndex provides a mock address index by implementing the
+// ExistsAddrIndex interface.
+type testExistsAddrIndex struct {
+	existsAddress      bool
+	existsAddressErr   error
+	existsAddresses    []bool
+	existsAddressesErr error
+}
+
+// ExistsAddress returns a mocked bool representing whether or not an address
+// has been seen before.
+func (e *testExistsAddrIndex) ExistsAddress(addr dcrutil.Address) (bool, error) {
+	return e.existsAddress, e.existsAddressErr
+}
+
+// ExistsAddresses returns a mocked bool slice representing whether or not each
+// address in a slice of addresses has been seen before.
+func (e *testExistsAddrIndex) ExistsAddresses(addrs []dcrutil.Address) ([]bool, error) {
+	return e.existsAddresses, e.existsAddressesErr
+}
+
 // testSyncManager provides a mock sync manager by implementing the
 // SyncManager interface.
 type testSyncManager struct {
@@ -448,7 +469,7 @@ type testSyncManager struct {
 	submitBlockErr     error
 	syncPeerID         int32
 	locateBlocks       []chainhash.Hash
-	existsAddrIndex    *indexers.ExistsAddrIndex
+	existsAddrIndex    rpcserver.ExistsAddrIndex
 	cfIndex            *indexers.CFIndex
 	tipGeneration      []chainhash.Hash
 	syncHeight         int64
@@ -480,7 +501,7 @@ func (s *testSyncManager) LocateBlocks(locator blockchain.BlockLocator, hashStop
 }
 
 // ExistsAddrIndex returns a mocked address index.
-func (s *testSyncManager) ExistsAddrIndex() *indexers.ExistsAddrIndex {
+func (s *testSyncManager) ExistsAddrIndex() rpcserver.ExistsAddrIndex {
 	return s.existsAddrIndex
 }
 
@@ -2106,6 +2127,56 @@ func TestHandleEstimateStakeDiff(t *testing.T) {
 		}(),
 		wantErr: true,
 		errCode: dcrjson.ErrRPCInternal.Code,
+	}})
+}
+
+func TestHandleExistsAddress(t *testing.T) {
+	t.Parallel()
+
+	validAddr := "DcurAwesomeAddressmqDctW5wJCW1Cn2MF"
+	validSyncManager := defaultMockSyncManager()
+	validSyncManager.existsAddrIndex = &testExistsAddrIndex{}
+	testRPCServerHandler(t, []rpcTest{{
+		name:    "handleExistsAddress: ok",
+		handler: handleExistsAddress,
+		cmd: &types.ExistsAddressCmd{
+			Address: validAddr,
+		},
+		mockSyncManager: validSyncManager,
+		result:          false,
+	}, {
+		name:    "handleExistsAddress: indexing not enabled",
+		handler: handleExistsAddress,
+		cmd: &types.ExistsAddressCmd{
+			Address: validAddr,
+		},
+		wantErr: true,
+		errCode: dcrjson.ErrRPCInternal.Code,
+	}, {
+		name:    "handleExistsAddress: bad address",
+		handler: handleExistsAddress,
+		cmd: &types.ExistsAddressCmd{
+			Address: "bad address",
+		},
+		mockSyncManager: validSyncManager,
+		wantErr:         true,
+		errCode:         dcrjson.ErrRPCInvalidAddressOrKey,
+	}, {
+		name:    "handleExistsAddress: ExistsAddress error",
+		handler: handleExistsAddress,
+		cmd: &types.ExistsAddressCmd{
+			Address: validAddr,
+		},
+		mockSyncManager: func() *testSyncManager {
+			syncManager := defaultMockSyncManager()
+			existsAddrIndex := &testExistsAddrIndex{
+				existsAddressErr: errors.New(""),
+			}
+			syncManager.existsAddrIndex = existsAddrIndex
+			return syncManager
+		}(),
+		wantErr: true,
+		errCode: dcrjson.ErrRPCInvalidParameter,
 	}})
 }
 
