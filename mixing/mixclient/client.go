@@ -853,8 +853,12 @@ func (c *Client) epochTicker(ctx context.Context) error {
 
 // Dicemix performs a new mixing session for a coinjoin mix transaction.
 func (c *Client) Dicemix(ctx context.Context, cj *CoinJoin) error {
+	c.mu.Lock()
+	warming := c.warming
+	c.mu.Unlock()
+
 	select {
-	case <-c.warming:
+	case <-warming:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
